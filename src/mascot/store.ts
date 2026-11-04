@@ -6,6 +6,9 @@ interface KodyState {
   mood: Mood
   base: Mood
   bubble: string
+  evolved: number | null
+  celebrate: (stage: number) => void
+  dismissEvolved: () => void
   react: (mood: Mood, bubble?: string, ms?: number) => void
   setBase: (mood: Mood) => void
 }
@@ -16,6 +19,9 @@ export const useKody = create<KodyState>((set, get) => ({
   mood: 'idle',
   base: 'idle',
   bubble: '',
+  evolved: null,
+  celebrate: (stage) => set({ evolved: stage, mood: 'happy' }),
+  dismissEvolved: () => set({ evolved: null }),
   react: (mood, bubble = '', ms = 2600) => {
     clearTimeout(timer)
     set({ mood, bubble })

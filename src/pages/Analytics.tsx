@@ -1,5 +1,7 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, AreaChart, Area } from 'recharts'
 import { format, subDays } from 'date-fns'
+import WorldMap from '../components/WorldMap'
+import Achievements from '../components/Achievements'
 import { Minus, Plus } from 'lucide-react'
 import { setPref, usePrefs } from '../db/settings'
 import { fmtMin, remainingMin } from '../lib/tasks'
@@ -47,6 +49,16 @@ export default function Analytics() {
     <main className="page">
       <h1>Analíticas</h1>
       <p className="sub">Tu rendimiento, cruzando tareas, hábitos, rutinas y enfoque.</p>
+
+      <div className="glass card">
+        <h2>Mundo de Kody</h2>
+        <WorldMap />
+      </div>
+
+      <div className="glass card">
+        <h2>Logros</h2>
+        <Achievements />
+      </div>
 
       <div className="glass card stack">
         <h2>Planificación de tiempo</h2>

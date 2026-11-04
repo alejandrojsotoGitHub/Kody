@@ -22,6 +22,10 @@ import Focus from './pages/Focus'
 import Analytics from './pages/Analytics'
 import Chat from './pages/Chat'
 import Settings from './pages/Settings'
+import Lab from './pages/Lab'
+import EvolutionOverlay from './components/EvolutionOverlay'
+import { evaluateDays, initEvolution } from './lib/evolution'
+import { checkAchievements } from './lib/achievements'
 import { db, uid } from './db/schema'
 import { askKody } from './ai/gemini'
 import { speak } from './voice/speech'
@@ -46,6 +50,16 @@ export default function App() {
     applyTheme(resolveTheme(prefs), prefs)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify({ ...prefs, xp: 0, geminiKey: '', userName: '', capacity: 0, capacityOverrides: 0 })])
+
+  // Evolución de Kody: migra el XP existente y cierra los días pasados (deterioro)
+  useEffect(() => {
+    const run = () => initEvolution().then(evaluateDays).then(checkAchievements)
+    run()
+    const i = setInterval(run, 60_000)
+    const vis = () => document.visibilityState === 'visible' && run()
+    document.addEventListener('visibilitychange', vis)
+    return () => { clearInterval(i); document.removeEventListener('visibilitychange', vis) }
+  }, [])
 
   // Reloj de la app: enfoque + recordatorios
   useEffect(() => {
@@ -93,7 +107,9 @@ export default function App() {
           <Route path="/enfoque" element={<Focus />} />
           <Route path="/analiticas" element={<Analytics />} />
           <Route path="/ajustes" element={<Settings />} />
+          <Route path="/lab" element={<Lab />} />
         </Routes>
+        <EvolutionOverlay />
         <nav className="tabbar glass">
           {TABS.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => `tab ${isActive || (to === '/mas' && isSub && !/^\/(tareas|proyectos)/.test(loc.pathname)) ? 'active' : ''}`}>

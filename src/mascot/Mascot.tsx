@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { useKody, type Mood } from './store'
 import { usePrefs } from '../db/settings'
 import { resolveTheme } from '../theme/themes'
+import { healthTier, stageOf } from '../lib/evolutionCore'
 
 type EyeStyle = 'round' | 'slit' | 'angry' | 'digit'
 
@@ -78,14 +79,17 @@ const QUIPS: Record<string, string[]> = {
   default: ['Sistemas en línea. ¿Qué construimos hoy?', 'console.log("¡a por todas!")', 'Un commit a la vez. 💾', 'Compilando motivación… 100%', 'Tu racha me alimenta el reactor.'],
 }
 
-export default function Mascot({ size = 180, bubble = true }: { size?: number; bubble?: boolean }) {
+export default function Mascot({ size = 180, bubble = true, stage: stageProp, health: healthProp, skin: skinProp }: { size?: number; bubble?: boolean; stage?: number; health?: number; skin?: string }) {
   const uid = useId().replace(/:/g, '')
   const prefs = usePrefs()
   const { mood: storeMood, bubble: text, react } = useKody()
   const eyes = useRef<SVGGElement>(null)
   const [spin, setSpin] = useState(false)
 
-  const skinId = prefs.mascotSkin === 'auto' ? resolveTheme(prefs).skin : prefs.mascotSkin
+  const skinId = skinProp ?? (prefs.mascotSkin === 'auto' ? resolveTheme(prefs).skin : prefs.mascotSkin)
+  const stage = stageProp ?? stageOf(prefs.growth)
+  const health = healthProp ?? prefs.health
+  const tier = healthTier(health)
   const sk = SKINS[skinId] ?? SKINS.classic
   const hour = new Date().getHours()
   const mood: Mood = storeMood === 'idle' && (hour >= 23 || hour < 5) ? 'sleep' : storeMood
@@ -131,6 +135,7 @@ export default function Mascot({ size = 180, bubble = true }: { size?: number; b
   const ms = sk.mouth ? { stroke: sk.mouth } : undefined
   const mf = sk.mouth ? { fill: sk.mouth, filter: 'none' } : undefined
   const mouth = (): ReactNode => {
+    if (stage === 0) return null
     if (mood === 'talking') return <ellipse cx="100" cy="132" rx="9" ry="5" className="k-fill k-talk" style={mf} />
     if (mood === 'happy') return <path d="M88 126 q12 16 24 0 z" className="k-fill" style={mf} />
     if (skinId === 'stark') return <g className="k-stroke thin" style={{ ...ms, filter: 'none' }}><path d="M90 128 h20" /><path d="M93 133 h14" /></g>
@@ -141,12 +146,12 @@ export default function Mascot({ size = 180, bubble = true }: { size?: number; b
 
   // Elementos que van DETRÁS de la cabeza / el cuerpo
   const behind = (): ReactNode => {
-    if (skinId === 'doom') return <>
-      <path d="M58 166 L30 218 Q100 232 170 218 L142 166Z" fill="#17512b" />
+    if (skinId === 'doom' && stage >= 2) return <>
+      {stage >= 4 && <path d="M58 166 L30 218 Q100 232 170 218 L142 166Z" fill="#17512b" />}
       <path d="M20 152 Q14 48 100 32 Q186 48 180 152 Q172 176 148 170 L52 170 Q28 176 20 152Z" fill="#1f6b3a" />
       <path d="M44 80 Q100 20 156 80" fill="none" stroke="#154a29" strokeWidth="6" />
     </>
-    if (skinId === 'reed') return <>
+    if (skinId === 'reed' && stage >= 3) return <>
       <g className="k-armL"><path d="M76 176 L44 200" className="k-arm" /><circle cx="42" cy="202" r="8" fill="#eaf4ff" className="k-hand" /></g>
       <g className="k-armR"><path d="M124 176 L156 200" className="k-arm" /><circle cx="158" cy="202" r="8" fill="#eaf4ff" className="k-hand" /></g>
     </>
@@ -155,6 +160,7 @@ export default function Mascot({ size = 180, bubble = true }: { size?: number; b
 
   // Detalles delante de cabeza/visor
   const front = (): ReactNode => {
+    if (stage < 3) return null
     switch (skinId) {
       case 'stark': return <>
         <rect x="50" y="76" width="100" height="62" rx="26" fill="none" stroke="#8a5a00" strokeWidth="2" />
@@ -188,15 +194,37 @@ export default function Mascot({ size = 180, bubble = true }: { size?: number; b
     }
   }
 
-  const showTag = skinId === 'classic' || skinId === 'matrix'
+  const showTag = (skinId === 'classic' || skinId === 'matrix') && stage >= 2
+
+  // Etapa: aspecto primitivo/oxidado al inicio y brillante al final. Salud: desgaste.
+  const tf = stage === 0 ? 'translate(22 46) scale(0.78)' : stage === 1 ? 'translate(10 18) scale(0.9)' : undefined
+  const baseGray = [0.8, 0.45, 0.12, 0, 0, 0][stage] ?? 0
+  const baseSep = [0.35, 0.15, 0, 0, 0, 0][stage] ?? 0
+  const baseBr = [0.78, 0.9, 1, 1, 1, 1.06][stage] ?? 1
+  const sat = stage >= 5 ? 1.2 : stage === 4 ? 1.12 : 1
+  const [hGray, hBr] = { ok: [0, 1], tired: [0.15, 0.95], damaged: [0.35, 0.85], critical: [0.55, 0.7] }[tier]
+  const filt = `grayscale(${Math.min(0.95, baseGray + hGray)}) sepia(${baseSep}) brightness(${(baseBr * hBr).toFixed(2)}) saturate(${sat}) drop-shadow(0 18px 24px rgba(0,0,0,0.35))${stage >= 5 ? ' drop-shadow(0 0 16px var(--a1))' : ''}`
+  const halo = (
+    <g>
+      <circle cx="100" cy="108" r="98" fill="none" stroke="var(--a1)" strokeWidth="1.5" strokeDasharray="2 9" className="k-halo" />
+      {[[30, 40], [172, 52], [22, 150], [178, 140]].map(([x, y], i) => <text key={i} x={x} y={y} className="k-spark" style={{ animationDelay: `${i * 0.4}s` }}>✦</text>)}
+    </g>
+  )
+  const cracks = health < 40 ? (
+    <g stroke="#000" strokeWidth="2" fill="none" opacity="0.55" strokeLinecap="round">
+      <path d="M124 56 l-9 17 l11 9 l-7 15" />
+      {health < 20 && <path d="M62 150 l12 -14 l-5 -11 l12 -9" />}
+    </g>
+  ) : null
+  const smoke = health < 20 ? <g className="k-smoke"><circle cx="76" cy="52" r="6" /><circle cx="84" cy="40" r="8" /><circle cx="96" cy="26" r="10" /></g> : null
 
   return (
     <div className="kody-wrap" style={{ width: size }}>
       {bubble && text && <div className="kody-bubble">{text}</div>}
       <svg
         viewBox="0 0 200 230" width={size} height={size * 1.15}
-        className={`kody k-${mood} ${spin ? 'k-spin' : ''}`}
-        style={{ '--ke': sk.eye, '--kc': sk.core } as React.CSSProperties}
+        className={`kody k-${mood} ${spin ? 'k-spin' : ''} ${tier !== 'ok' ? 'k-tired' : ''}`}
+        style={{ '--ke': sk.eye, '--kc': sk.core, filter: filt } as React.CSSProperties}
         onClick={tap} onDoubleClick={dbl} role="img" aria-label="Kody, tu asistente"
       >
         <defs>
@@ -221,19 +249,22 @@ export default function Mascot({ size = 180, bubble = true }: { size?: number; b
 
         <g className="k-float">
           <ellipse cx="100" cy="224" rx="42" ry="6" className="k-shadow" />
+          <g transform={tf}>
+          {stage >= 5 && halo}
           {behind()}
-          {sk.antenna && <>
+          {sk.antenna && stage >= 2 && <>
             <line x1="100" y1="34" x2="100" y2="56" className="k-stroke thin" />
             {skinId === 'apple'
               ? <path d="M100 30 q10 -16 24 -11 q-2 15 -24 11z" fill="#30d158" />
               : <><circle cx="100" cy="28" r="9" fill={`url(#g${uid})`} className="k-tipglow" /><circle cx="100" cy="28" r="5" className={mood === 'alert' ? 'k-tip alert' : 'k-tip'} /></>}
           </>}
-          {/* orejas */}
+          {stage >= 2 && <>
           <rect x="18" y="92" width="26" height="46" rx="12" fill={sk.ears === 'braces' ? `url(#m${uid})` : sk.earColor} />
           <rect x="156" y="92" width="26" height="46" rx="12" fill={sk.ears === 'braces' ? `url(#m${uid})` : sk.earColor} />
           {sk.ears === 'braces' && <>
             <text x="31" y="123" textAnchor="middle" className="k-code">{'{'}</text>
             <text x="169" y="123" textAnchor="middle" className="k-code">{'}'}</text>
+          </>}
           </>}
           {/* cabeza */}
           <rect x="34" y="54" width="132" height="108" rx="40" fill={`url(#h${uid})`} />
@@ -246,10 +277,11 @@ export default function Mascot({ size = 180, bubble = true }: { size?: number; b
           {mouth()}
           {mood === 'thinking' && <g className="k-think"><circle cx="150" cy="52" r="3" /><circle cx="162" cy="44" r="4" /><circle cx="176" cy="34" r="5" /></g>}
           {mood === 'sleep' && <g className="k-zzz"><text x="150" y="64">z</text><text x="164" y="50" fontSize="16">Z</text></g>}
-          {/* cuerpo */}
+          {stage >= 1 && <>
           <path d="M72 164 h56 l9 36 a12 12 0 0 1 -12 14 h-50 a12 12 0 0 1 -12 -14 z" fill={`url(#m${uid})`} />
           {skinId === 'stark' && <path d="M78 170 h44 l-4 10 h-36z" fill="#ffc53d" opacity="0.9" />}
-          {sk.chest === 'four' ? <>
+          {stage >= 4 && <><rect x="56" y="166" width="18" height="10" rx="4" fill={`url(#m${uid})`} stroke="rgba(255,255,255,0.3)" /><rect x="126" y="166" width="18" height="10" rx="4" fill={`url(#m${uid})`} stroke="rgba(255,255,255,0.3)" /></>}
+          {stage < 3 ? <circle cx="100" cy="188" r="7" fill="#050913" stroke={sk.ring} strokeWidth="1.5" /> : sk.chest === 'four' ? <>
             <circle cx="100" cy="190" r="15" fill="#eaf4ff" stroke="#0b2a7a" strokeWidth="2" />
             <text x="100" y="197" textAnchor="middle" className="k-four">4</text>
           </> : <>
@@ -257,6 +289,10 @@ export default function Mascot({ size = 180, bubble = true }: { size?: number; b
             <circle cx="100" cy="188" r="10" fill="none" stroke={sk.ring} strokeWidth="1.5" strokeDasharray="4 5" className="k-ring" />
             <circle cx="100" cy="188" r="5" className="k-core" />
           </>}
+          </>}
+          {cracks}
+          {smoke}
+          </g>
         </g>
       </svg>
     </div>

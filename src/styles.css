@@ -278,3 +278,39 @@ textarea.input { resize: none; }
 .load.over > div { background: linear-gradient(90deg, var(--warn), var(--danger)); }
 .stepper { display: flex; align-items: center; gap: 6px; }
 .stepper b { min-width: 46px; text-align: center; font-family: var(--mono); font-size: 13px; }
+
+/* Evolución / deterioro de Kody */
+.k-halo { transform-box: fill-box; transform-origin: center; animation: rot 14s linear infinite; }
+.k-spark { font-size: 14px; fill: var(--a1); animation: pulse 2.2s ease-in-out infinite; }
+.k-smoke circle { fill: rgba(60,60,70,0.6); animation: smoke 2.4s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+.k-smoke circle:nth-child(2) { animation-delay: .5s; } .k-smoke circle:nth-child(3) { animation-delay: 1s; }
+@keyframes smoke { from { transform: translateY(8px) scale(0.5); opacity: 0.8; } to { transform: translateY(-14px) scale(1.4); opacity: 0; } }
+.k-tired .k-eye rect, .k-tired .k-eye path, .k-tired .k-eye text { animation: none; transform-box: fill-box; transform-origin: center; transform: scaleY(0.55); }
+.evo-bg { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 24px; background: rgba(0,0,0,0.6); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); animation: fade .3s; }
+.evo-card { width: 100%; max-width: 360px; padding: 26px 20px 22px; text-align: center; animation: pop2 .5s cubic-bezier(.2,1.4,.4,1); }
+@keyframes pop2 { from { transform: scale(0.6); opacity: 0; } }
+
+/* ───────── Mundo de Kody ───────── */
+.world { position: relative; width: 100%; }
+.world > svg { display: block; width: 100%; height: auto; aspect-ratio: 360 / 200; border-radius: var(--radius); }
+.world-kody { position: absolute; left: 50%; transform: translateX(-50%); z-index: 2; }
+.world-title { position: absolute; left: 12px; top: 10px; z-index: 3; font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; padding: 4px 10px; border-radius: 99px; background: rgba(0,0,0,0.45); color: #fff; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.world-lock { position: absolute; inset: 0; z-index: 4; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: #fff; text-align: center; background: rgba(0,0,0,0.35); border-radius: var(--radius); }
+.w-blink { animation: pulse 1.6s ease-in-out infinite; }
+.w-bob { animation: wbob 3s ease-in-out infinite; }
+@keyframes wbob { 50% { transform: translateY(-4px); } }
+.w-flicker { transform-box: fill-box; transform-origin: 50% 100%; animation: flick .5s ease-in-out infinite alternate; }
+@keyframes flick { from { transform: scale(1, 1); } to { transform: scale(0.88, 1.1); } }
+.w-rain text { font-family: var(--mono); font-size: 10px; fill: #2bff7a; opacity: 0.28; animation: rain 4s linear infinite; }
+.path { display: flex; align-items: flex-start; position: relative; padding-top: 4px; }
+.path::before { content: ''; position: absolute; left: 8%; right: 8%; top: 20px; height: 2px; background: var(--track); }
+.node { flex: 1; border: none; background: none; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 0 2px; cursor: pointer; position: relative; }
+.node .bubble { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-family: var(--mono); font-weight: 700; font-size: 13px; background: var(--bg1); border: 2px solid var(--track); }
+.node.open .bubble { background: var(--grad); color: #060818; border-color: transparent; }
+.node.cur .bubble { box-shadow: 0 0 0 4px color-mix(in srgb, var(--a1) 35%, transparent); }
+.node.sel .lbl { color: var(--text); font-weight: 600; }
+.node .lbl { font-size: 9.5px; line-height: 1.2; text-align: center; }
+.badges { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.badge { display: flex; flex-direction: column; gap: 3px; padding: 12px; border-radius: 18px; background: rgba(255,255,255,0.05); opacity: 0.55; }
+.badge.got { opacity: 1; background: color-mix(in srgb, var(--a1) 12%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--a1) 35%, transparent); }
+.badge .ico { font-size: 26px; }

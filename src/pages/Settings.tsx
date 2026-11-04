@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Download, Trash2, Upload } from 'lucide-react'
 import { exportToFile, importFromFile, wipeAll } from '../db/backup'
 import { setPref, usePrefs } from '../db/settings'
 import { THEMES } from '../theme/themes'
-import { voiceProblem } from '../voice/speech'
+import { listDeviceVoices, previewVoice, stopSpeaking, voiceProblem } from '../voice/speech'
+import { GEMINI_VOICES } from '../voice/geminiTts'
 import { GEMINI_MODELS, testGemini } from '../ai/gemini'
 import Mascot, { SKINS } from '../mascot/Mascot'
 
@@ -13,6 +14,8 @@ export default function Settings() {
   const [mode, setMode] = useState<'fusionar' | 'reemplazar'>('fusionar')
   const [withSecrets, setWithSecrets] = useState(false)
   const [msg, setMsg] = useState('')
+  const [devVoices, setDevVoices] = useState<SpeechSynthesisVoice[]>([])
+  useEffect(() => { listDeviceVoices().then(setDevVoices) }, [])
   const flash = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 3500) }
 
   const onImport = async (f?: File) => {
@@ -122,6 +125,34 @@ export default function Settings() {
         </div>
         <label className="row small"><input type="checkbox" checked={prefs.speak} onChange={(e) => setPref('speak', e.target.checked)} /> Kody responde en voz alta</label>
         <div className="small muted">{voiceProblem() ?? 'Dictado por micrófono disponible en el chat.'}</div>
+      </div>
+
+      <div className="glass card stack">
+        <h2>Voz de Kody</h2>
+        <div className="seg">
+          <button className={prefs.voiceEngine === 'gemini' ? 'on' : ''} onClick={() => setPref('voiceEngine', 'gemini')}>Natural (Gemini)</button>
+          <button className={prefs.voiceEngine === 'dispositivo' ? 'on' : ''} onClick={() => setPref('voiceEngine', 'dispositivo')}>Del teléfono</button>
+        </div>
+        {prefs.voiceEngine === 'gemini' ? <>
+          <select className="input" value={prefs.geminiVoice} onChange={(e) => setPref('geminiVoice', e.target.value)}>
+            {GEMINI_VOICES.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+          </select>
+          <div className="small muted">Voces muy naturales. Necesitan internet y usan tu cuota gratuita de Gemini; si fallan, Kody usa la voz del teléfono.</div>
+        </> : <>
+          <select className="input" value={prefs.voiceName} onChange={(e) => setPref('voiceName', e.target.value)}>
+            <option value="">Automática (la mejor disponible)</option>
+            {devVoices.map((v) => <option key={v.voiceURI} value={v.voiceURI}>{v.name} · {v.lang}{v.localService ? '' : ' · red'}</option>)}
+          </select>
+          <div><div className="row small muted"><span className="grow">Velocidad</span>{prefs.voiceRate.toFixed(2)}x</div>
+            <input type="range" min={60} max={140} value={Math.round(prefs.voiceRate * 100)} onChange={(e) => setPref('voiceRate', Number(e.target.value) / 100)} style={{ width: '100%' }} /></div>
+          <div><div className="row small muted"><span className="grow">Tono</span>{prefs.voicePitch.toFixed(2)}</div>
+            <input type="range" min={60} max={140} value={Math.round(prefs.voicePitch * 100)} onChange={(e) => setPref('voicePitch', Number(e.target.value) / 100)} style={{ width: '100%' }} /></div>
+          {devVoices.length === 0 && <div className="small muted">Este dispositivo no expone voces en español; se usará la predeterminada.</div>}
+        </>}
+        <div className="row">
+          <button className="btn grow" onClick={async () => { flash('Reproduciendo…'); try { await previewVoice(prefs); setMsg('') } catch (e) { flash(`⚠️ ${(e as Error).message}`) } }}>▶ Escuchar muestra</button>
+          <button className="btn" onClick={stopSpeaking}>■</button>
+        </div>
       </div>
 
       <div className="glass card stack">

@@ -25,8 +25,19 @@ export interface Prefs {
   backendUrl: string
   tone: 'amigable' | 'formal' | 'jarvis'
   speak: boolean
+  voiceEngine: 'dispositivo' | 'gemini'
+  voiceName: string // voiceURI de la voz del dispositivo ('' = automática)
+  geminiVoice: string
+  voiceRate: number
+  voicePitch: number
   wake: boolean
   xp: number
+  growth: number // puntos de crecimiento de Kody (sube y puede bajar)
+  health: number // 0-100
+  maxStage: number // etapa máxima alcanzada
+  lastEval: string // último día evaluado (yyyy-MM-dd)
+  evolveSeen: number // última etapa celebrada
+  achievements: Record<string, number>
   capacity: number[] // minutos disponibles por día de semana (0=domingo)
   capacityOverrides: Record<string, number> // por fecha yyyy-MM-dd
 }
@@ -55,8 +66,19 @@ export const DEFAULT_PREFS: Prefs = {
   backendUrl: '',
   tone: 'jarvis',
   speak: false,
+  voiceEngine: 'gemini',
+  voiceName: '',
+  geminiVoice: 'Kore',
+  voiceRate: 1,
+  voicePitch: 1,
   wake: false,
   xp: 0,
+  growth: 0,
+  health: 100,
+  maxStage: 0,
+  lastEval: '',
+  evolveSeen: 0,
+  achievements: {},
   capacity: [240, 180, 180, 180, 180, 180, 240],
   capacityOverrides: {},
 }
@@ -69,5 +91,12 @@ export function usePrefs(): Prefs {
   const rows = useLiveQuery(() => db.settings.toArray(), [])
   const prefs = { ...DEFAULT_PREFS } as Record<string, unknown>
   for (const r of rows ?? []) if (r.key in DEFAULT_PREFS) prefs[r.key] = r.value
+  return prefs as unknown as Prefs
+}
+
+/** Lectura puntual de las preferencias (fuera de componentes React). */
+export async function getPrefs(): Promise<Prefs> {
+  const prefs = { ...DEFAULT_PREFS } as Record<string, unknown>
+  for (const r of await db.settings.toArray()) if (r.key in DEFAULT_PREFS) prefs[r.key] = r.value
   return prefs as unknown as Prefs
 }

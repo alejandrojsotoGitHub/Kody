@@ -34,8 +34,9 @@ export default function Chat() {
       const history = (await db.chatMessages.orderBy('createdAt').toArray()).map((m) => ({ role: m.role, text: m.text }))
       const answer = await askKody(history, prefs)
       await db.chatMessages.add({ id: uid(), role: 'model', text: answer, createdAt: Date.now() })
-      setBase('idle'); react('talking', '', Math.min(4000, 800 + answer.length * 30))
+      setBase('idle')
       if (prefs.speak) speak(answer)
+      else react('talking', '', Math.min(4000, 800 + answer.length * 30))
     } catch (e) {
       await db.chatMessages.add({ id: uid(), role: 'model', text: `⚠️ ${(e as Error).message}`, createdAt: Date.now() })
       setBase('idle'); react('alert', '', 2500)

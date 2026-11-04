@@ -2,7 +2,8 @@ import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Play, Sparkles } from 'lucide-react'
-import Mascot from '../mascot/Mascot'
+import World from '../world/World'
+import { useEvolution } from '../lib/evolution'
 import { LoadBar, Ring } from '../components/ui'
 import { capacityFor, loadFor } from '../lib/tasks'
 import { HabitRow, RoutineCard, TaskRow } from '../components/rows'
@@ -13,6 +14,7 @@ import { levelOf } from '../lib/stats'
 
 export default function Today() {
   const prefs = usePrefs()
+  const evo = useEvolution()
   const nav = useNavigate()
   const d = useData()
   const today = ymd()
@@ -43,15 +45,23 @@ export default function Today() {
       <div className="kicker">{format(new Date(), "EEEE d 'de' MMMM", { locale: es })}</div>
       <h1>{greet}{prefs.userName && <>, <span className="grad-text">{prefs.userName}</span></>}</h1>
 
-      <div style={{ display: 'flex', justifyContent: 'center', margin: '38px 0 6px' }}>
-        <Mascot size={170} />
+      <div className="glass" style={{ margin: '56px 0 14px', position: 'relative' }}>
+        <World themeId={evo.themeId} stage={evo.stage} health={evo.health} />
       </div>
-      <div className="glass card" style={{ padding: '12px 16px' }}>
-        <div className="row small">
-          <span className="mono">NIVEL {level}</span>
-          <div className="pbar grow"><div style={{ width: `${into}%` }} /></div>
-          <span className="mono muted">{into}/100 XP</span>
+      <div className="glass card stack" style={{ padding: '14px 16px' }}>
+        <div className="row">
+          <div className="grow"><div className="kicker">Etapa {evo.stage + 1} de 6</div><h3>{evo.name}</h3></div>
+          <span className="mono small muted">NIVEL {level} · {into}/100</span>
         </div>
+        <div>
+          <div className="small muted" style={{ marginBottom: 6 }}>{evo.next ? `Siguiente etapa: faltan ${evo.missing} pts` : 'Etapa máxima alcanzada'}</div>
+          <div className="pbar"><div style={{ width: `${evo.pct * 100}%` }} /></div>
+        </div>
+        <div>
+          <div className="row small muted" style={{ marginBottom: 6 }}><span className="grow">Salud de Kody</span><span>{evo.health}%</span></div>
+          <div className="pbar"><div style={{ width: `${evo.health}%`, background: evo.tier === 'ok' ? 'var(--ok)' : evo.tier === 'tired' ? 'var(--warn)' : 'var(--danger)' }} /></div>
+        </div>
+        {evo.tier !== 'ok' && <div className="small" style={{ color: 'var(--warn)' }}>⚠️ Kody se debilita. {total - done > 0 ? `Te faltan ${total - done} cosas hoy: ` : ''}cúmplelas para recuperarlo.</div>}
       </div>
 
       <div className="glass card row" style={{ gap: 18 }}>

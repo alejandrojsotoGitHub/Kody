@@ -1,4 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { getPrefs, type Prefs } from '../db/settings'
+import { useKody } from '../mascot/store'
+import { geminiSpeak, stopGeminiAudio } from './geminiTts'
 const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
 export const speechSupported = !!SR
 
@@ -93,11 +96,75 @@ export function startWake(onCommand: (t: string) => void, onArmed: (armed: boole
   return () => { active = false; try { r?.abort() } catch { /* nada */ } }
 }
 
-export function speak(text: string) {
+/** Voces en español del dispositivo (las de red de Google suenan mucho mejor que las locales). */
+export function listDeviceVoices(): Promise<SpeechSynthesisVoice[]> {
+  return new Promise((resolve) => {
+    if (!('speechSynthesis' in window)) return resolve([])
+    const pick = () => speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith('es'))
+    const now = pick()
+    if (now.length) return resolve(now)
+    const done = () => resolve(pick())
+    speechSynthesis.addEventListener('voiceschanged', done, { once: true })
+    setTimeout(done, 1500)
+  })
+}
+
+function bestVoice(voices: SpeechSynthesisVoice[], wanted: string) {
+  return (
+    voices.find((v) => v.voiceURI === wanted) ??
+    voices.find((v) => /google/i.test(v.name) && /es-(mx|us)/i.test(v.lang)) ??
+    voices.find((v) => /google/i.test(v.name)) ??
+    voices.find((v) => !v.localService) ??
+    voices.find((v) => /es-(mx|us)/i.test(v.lang)) ??
+    voices[0]
+  )
+}
+
+async function deviceSpeak(text: string, prefs: Pick<Prefs, 'voiceName' | 'voiceRate' | 'voicePitch'>): Promise<void> {
   if (!('speechSynthesis' in window)) return
+  const voices = await listDeviceVoices()
   speechSynthesis.cancel()
-  const u = new SpeechSynthesisUtterance(text)
-  u.lang = 'es-MX'
-  u.rate = 1.02
-  speechSynthesis.speak(u)
+  await new Promise<void>((resolve) => {
+    const u = new SpeechSynthesisUtterance(text)
+    const v = bestVoice(voices, prefs.voiceName)
+    if (v) { u.voice = v; u.lang = v.lang } else u.lang = 'es-MX'
+    u.rate = prefs.voiceRate
+    u.pitch = prefs.voicePitch
+    u.onend = () => resolve()
+    u.onerror = () => resolve()
+    speechSynthesis.speak(u)
+  })
+}
+
+export function stopSpeaking() {
+  stopGeminiAudio()
+  if ('speechSynthesis' in window) speechSynthesis.cancel()
+}
+
+const clean = (t: string) => t.replace(/[*_`#>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 500)
+
+/** Hace hablar a Kody con la voz elegida en Ajustes. Si la de Gemini falla, usa la del dispositivo. */
+export async function speak(text: string, override?: Partial<Prefs>): Promise<void> {
+  const prefs = { ...(await getPrefs()), ...override }
+  const t = clean(text)
+  if (!t) return
+  stopSpeaking()
+  const kody = useKody.getState()
+  kody.setBase('talking')
+  try {
+    if (prefs.voiceEngine === 'gemini' && prefs.geminiKey) {
+      try { await geminiSpeak(t, prefs); return } catch { /* respaldo: voz del dispositivo */ }
+    }
+    await deviceSpeak(t, prefs)
+  } finally {
+    kody.setBase('idle')
+  }
+}
+
+/** Para el botón "Escuchar muestra": informa del error en vez de ocultarlo. */
+export async function previewVoice(prefs: Prefs): Promise<void> {
+  const t = 'Hola, soy Kody. Hoy vamos a lograr mucho juntos.'
+  stopSpeaking()
+  if (prefs.voiceEngine === 'gemini') return geminiSpeak(t, prefs)
+  await deviceSpeak(t, prefs)
 }

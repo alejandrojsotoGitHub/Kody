@@ -2,11 +2,13 @@ import { db, uid, type Habit, type Project, type Routine, type Task } from './sc
 import { useKody } from '../mascot/store'
 import { ymd, ALL_DAYS } from '../lib/dates'
 import { TEMPLATES } from './templates'
+import { grantXp } from '../lib/evolution'
+import { checkAchievements } from '../lib/achievements'
 
 export async function reward(xp: number, msg?: string) {
-  const r = await db.settings.get('xp')
-  await db.settings.put({ key: 'xp', value: ((r?.value as number) ?? 0) + xp })
+  await grantXp(xp)
   if (msg) useKody.getState().react('happy', msg)
+  await checkAchievements()
 }
 
 export async function toggleTask(t: Task) {
