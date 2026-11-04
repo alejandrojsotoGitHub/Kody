@@ -32,6 +32,11 @@ export interface Prefs {
   voicePitch: number
   wake: boolean
   xp: number
+  focusDnd: boolean // activar No Molestar durante un enfoque (Android)
+  dndMode: 'priority' | 'alarms' | 'none'
+  focusBlock: boolean // bloquear apps distractoras durante un enfoque (Android)
+  blockedApps: string[] // paquetes de las apps distractoras
+  confirmDeviceActions: boolean // pedir confirmación antes de que Kody actúe sobre el teléfono
   growth: number // puntos de crecimiento de Kody (sube y puede bajar)
   health: number // 0-100
   maxStage: number // etapa máxima alcanzada
@@ -73,6 +78,11 @@ export const DEFAULT_PREFS: Prefs = {
   voicePitch: 1,
   wake: false,
   xp: 0,
+  focusDnd: true,
+  dndMode: 'priority',
+  focusBlock: true,
+  blockedApps: [],
+  confirmDeviceActions: true,
   growth: 0,
   health: 100,
   maxStage: 0,

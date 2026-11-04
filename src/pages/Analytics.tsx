@@ -1,6 +1,7 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, AreaChart, Area } from 'recharts'
 import { format, subDays } from 'date-fns'
 import WorldMap from '../components/WorldMap'
+import UsageCard from '../components/UsageCard'
 import Achievements from '../components/Achievements'
 import { Minus, Plus } from 'lucide-react'
 import { setPref, usePrefs } from '../db/settings'
@@ -54,6 +55,8 @@ export default function Analytics() {
         <h2>Mundo de Kody</h2>
         <WorldMap />
       </div>
+
+      <UsageCard />
 
       <div className="glass card">
         <h2>Logros</h2>

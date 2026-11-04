@@ -21,6 +21,25 @@ La key se guarda solo en tu dispositivo y **nunca se sube a este repositorio**. 
 
 **Ajustes → Datos · respaldo**: *Exportar datos* genera un `.json` con todo (proyectos, tareas, hábitos, chat, ajustes). En el teléfono nuevo usa *Importar respaldo* (fusionar o reemplazar). Por defecto la API key **no** se incluye.
 
+## App Android (APK) — control del teléfono
+
+El APK suma lo que un navegador no puede hacer:
+
+| Función | Qué hace | Permiso (lo concedes una vez) |
+|---|---|---|
+| **No Molestar** | Se activa solo durante un enfoque y vuelve a como estaba al terminar (incluso con la app cerrada) | Acceso a No Molestar |
+| **Bloqueo de apps** | Si abres una app distractora durante un enfoque, te devuelve al inicio | Servicio de Accesibilidad de Kody |
+| **Tiempo de uso** | Cuánto usas cada app (Analíticas) | Acceso al uso |
+| **Recordatorios** | Avisos del calendario con la app cerrada | Notificaciones y alarmas |
+| **Dictado por voz** | Reconocedor de voz de Android | Micrófono |
+| **Kody (IA)** | Puede activar No Molestar, abrir apps e iniciar enfoques (pide confirmación) | — |
+
+**Obtener el APK:** en GitHub → pestaña **Actions** → *Compilar APK (Android)* → último run → artefacto **kody-apk**. Descomprime e instala `app-debug.apk` (permite instalar apps de orígenes desconocidos).
+
+**Primer uso:** abre **Más → Ajustes → Permisos del teléfono** y pulsa *Conceder* en cada uno. En Android 13+, para el bloqueo de apps primero entra en *Ajustes del teléfono → Apps → Kody → ⋮ → Permitir ajustes restringidos*, y luego activa Kody en *Accesibilidad*.
+
+Compilar localmente: JDK 21 + Android SDK 36, y luego `npm run build && npx cap sync android && cd android && ./gradlew assembleDebug`.
+
 ## Desarrollo
 
 ```bash
@@ -38,5 +57,4 @@ React + Vite + TypeScript · Dexie (IndexedDB) · Framer Motion · Recharts · P
 
 ## Hoja de ruta
 
-- App Android nativa (APK): No Molestar, tiempo de uso, bloqueo de apps en modo Enfoque, alarmas con la app cerrada.
 - Backend opcional (proxy de IA y sincronización cifrada).

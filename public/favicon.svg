@@ -5,8 +5,7 @@
     <linearGradient id="h" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5eead4"/><stop offset=".5" stop-color="#2b3460"/><stop offset="1" stop-color="#a78bfa"/></linearGradient>
     <radialGradient id="glow"><stop offset="0" stop-color="#5eead4" stop-opacity=".35"/><stop offset="1" stop-color="#5eead4" stop-opacity="0"/></radialGradient>
   </defs>
-  <rect width="512" height="512" fill="url(#bg)"/>
-  <circle cx="256" cy="256" r="230" fill="url(#glow)"/>
+  <rect width="512" height="512" fill="url(#bg)"/><circle cx="256" cy="256" r="230" fill="url(#glow)"/>
   <g transform="translate(0 0) scale(1)">
     <line x1="256" y1="84" x2="256" y2="132" stroke="#5eead4" stroke-width="10" stroke-linecap="round"/>
     <circle cx="256" cy="72" r="16" fill="#5eead4"/>

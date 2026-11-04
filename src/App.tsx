@@ -26,6 +26,8 @@ import Lab from './pages/Lab'
 import EvolutionOverlay from './components/EvolutionOverlay'
 import { evaluateDays, initEvolution } from './lib/evolution'
 import { checkAchievements } from './lib/achievements'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { syncNativeReminders } from './native/notifications'
 import { db, uid } from './db/schema'
 import { askKody } from './ai/gemini'
 import { speak } from './voice/speech'
@@ -50,6 +52,10 @@ export default function App() {
     applyTheme(resolveTheme(prefs), prefs)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify({ ...prefs, xp: 0, geminiKey: '', userName: '', capacity: 0, capacityOverrides: 0 })])
+
+  // Recordatorios del calendario como notificaciones del sistema (solo app Android)
+  const allEvents = useLiveQuery(() => db.events.toArray(), [])
+  useEffect(() => { if (allEvents) void syncNativeReminders(allEvents) }, [allEvents])
 
   // Evolución de Kody: migra el XP existente y cierra los días pasados (deterioro)
   useEffect(() => {

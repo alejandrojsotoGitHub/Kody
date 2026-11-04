@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Kody</string>
+    <string name="title_activity_main">Kody</string>
+    <string name="package_name">app.kody.assistant</string>
+    <string name="custom_url_scheme">app.kody.assistant</string>
+    <string name="accessibility_description">Kody cierra las apps distractoras que elegiste mientras dura un enfoque. No lee el contenido de tu pantalla.</string>
+</resources>

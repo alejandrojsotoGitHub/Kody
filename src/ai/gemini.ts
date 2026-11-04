@@ -1,6 +1,9 @@
 import { db, uid, type Project } from '../db/schema'
 import { addProject, addTask, toggleTask } from '../db/actions'
 import { ALL_DAYS, ymd } from '../lib/dates'
+import { getPrefs } from '../db/settings'
+import { useFocus } from '../lib/focusStore'
+import { device, errorText, isNative } from '../native/device'
 import type { Prefs } from '../db/settings'
 
 type Part = { text?: string; functionCall?: { name: string; args: Record<string, unknown> }; functionResponse?: { name: string; response: unknown } }
@@ -19,6 +22,18 @@ const TOOLS = [{
   ],
 }]
 
+const FOCUS_TOOL = { name: 'iniciar_enfoque', description: 'Inicia una sesión de enfoque (pomodoro) y, en el teléfono Android, activa No Molestar y el bloqueo de apps distractoras.', parameters: { type: 'OBJECT', properties: { minutos: { type: 'INTEGER', description: 'Duración, 5 a 180' }, tarea: S('Título de una tarea pendiente en la que enfocarse') } } }
+const DEVICE_TOOLS = [
+  { name: 'activar_no_molestar', description: 'Activa o desactiva el modo No Molestar del teléfono.', parameters: { type: 'OBJECT', properties: { activar: { type: 'BOOLEAN', description: 'true para activar, false para desactivar' }, minutos: { type: 'INTEGER', description: 'Desactivarlo solo tras estos minutos' } }, required: ['activar'] } },
+  { name: 'abrir_app', description: 'Abre una app instalada en el teléfono por su nombre.', parameters: { type: 'OBJECT', properties: { nombre: S('Nombre de la app, ej. WhatsApp') }, required: ['nombre'] } },
+]
+
+/** Antes de actuar sobre el teléfono, pide confirmación al usuario (configurable en Ajustes). */
+async function confirmAction(msg: string) {
+  const p = await getPrefs()
+  return p.confirmDeviceActions ? window.confirm(`Kody quiere: ${msg}\n\n¿Permitir?`) : true
+}
+
 const AREA_COLORS: Record<string, string> = { Universidad: '#38bdf8', Iglesia: '#fbbf24', Emprendimiento: '#34d399', Personal: '#c084fc' }
 
 function findProject(projects: Project[], name?: unknown) {
@@ -30,6 +45,33 @@ async function run(name: string, a: Record<string, unknown>): Promise<unknown> {
   const projects = await db.projects.toArray()
   const proj = findProject(projects, a.proyecto)
   switch (name) {
+    case 'iniciar_enfoque': {
+      if (useFocus.getState().endAt) return { ok: false, error: 'Ya hay un enfoque en curso' }
+      const min = Math.min(180, Math.max(5, Number(a.minutos ?? 25)))
+      const task = a.tarea ? (await db.tasks.toArray()).find((t) => !t.done && t.title.toLowerCase().includes(String(a.tarea).toLowerCase())) : undefined
+      if (!(await confirmAction(`iniciar un enfoque de ${min} min${task ? ` en "${task.title}"` : ''}`))) return { ok: false, error: 'El usuario canceló la acción' }
+      useFocus.getState().start(min, task?.id ?? '', task?.projectId ?? '')
+      return { ok: true, minutos: min }
+    }
+    case 'activar_no_molestar': {
+      if (!isNative) return { ok: false, error: 'Solo funciona en la app Android' }
+      const on = a.activar !== false
+      if (!(await confirmAction(on ? 'activar No Molestar' : 'desactivar No Molestar'))) return { ok: false, error: 'El usuario canceló la acción' }
+      try {
+        const p = await getPrefs()
+        await device.setDnd(on, p.dndMode, on && a.minutos ? Date.now() + Number(a.minutos) * 60000 : undefined)
+        return { ok: true }
+      } catch (e) { return { ok: false, error: errorText(e) } }
+    }
+    case 'abrir_app': {
+      if (!isNative) return { ok: false, error: 'Solo funciona en la app Android' }
+      const q = String(a.nombre ?? '').toLowerCase().trim()
+      const apps = await device.getInstalledApps()
+      const app = apps.find((x) => x.label.toLowerCase() === q) ?? apps.find((x) => x.label.toLowerCase().includes(q))
+      if (!app) return { ok: false, error: 'No encontré esa app instalada' }
+      if (!(await confirmAction(`abrir ${app.label}`))) return { ok: false, error: 'El usuario canceló la acción' }
+      try { await device.openApp(app.pkg); return { ok: true, app: app.label } } catch (e) { return { ok: false, error: errorText(e) } }
+    }
     case 'crear_tarea':
       await addTask({ title: String(a.titulo), dueDate: a.fecha ? String(a.fecha) : undefined, priority: ([1, 2, 3].includes(Number(a.prioridad)) ? Number(a.prioridad) : 2) as 1 | 2 | 3, projectId: proj?.id, source: 'ia', estimateMin: a.minutos ? Number(a.minutos) : undefined, subtasks: ((a.secciones as string[]) ?? []).map((title) => ({ id: uid(), title: String(title), done: false })) })
       return { ok: true, proyecto: proj?.name ?? null }
@@ -133,7 +175,7 @@ export async function askKody(history: { role: 'user' | 'model'; text: string }[
   const contents: Content[] = history.slice(-16).map((m) => ({ role: m.role, parts: [{ text: m.text }] }))
   const system = await buildContext(prefs)
   for (let i = 0; i < 5; i++) {
-    const { data } = await generate(prefs, JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents, tools: TOOLS }))
+    const { data } = await generate(prefs, JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents, tools: [{ functionDeclarations: [...TOOLS[0].functionDeclarations, FOCUS_TOOL, ...(isNative ? DEVICE_TOOLS : [])] }] }))
     const parts: Part[] = data.candidates?.[0]?.content?.parts ?? []
     const calls = parts.filter((p) => p.functionCall)
     if (!calls.length) return parts.filter((p) => !(p as { thought?: boolean }).thought).map((p) => p.text ?? '').join('').trim() || '…'

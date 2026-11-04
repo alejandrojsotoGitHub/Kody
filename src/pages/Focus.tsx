@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Pause, Play } from 'lucide-react'
 import { Ring } from '../components/ui'
 import { useFocus } from '../lib/focusStore'
+import { isNative } from '../native/device'
 import { useData } from '../lib/hooks'
 import { ymd } from '../lib/dates'
 
@@ -77,7 +78,9 @@ export default function Focus() {
         <div className="stat"><b>{today.length}</b><span>Sesiones</span></div>
       </div>
       <div className="small muted" style={{ padding: '0 8px' }}>
-        El bloqueo de apps y el modo No Molestar automático llegarán con la app Android nativa. Mientras tanto, activa No Molestar tú mismo antes de empezar.
+        {isNative
+          ? 'Al iniciar, Kody activa No Molestar y bloquea tus apps distractoras (configúralo en Ajustes → Teléfono).'
+          : 'En la app Android, el enfoque activa No Molestar y bloquea tus apps distractoras. En el navegador no es posible.'}
       </div>
     </main>
   )

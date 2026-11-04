@@ -7,6 +7,7 @@ import { listDeviceVoices, previewVoice, stopSpeaking, voiceProblem } from '../v
 import { GEMINI_VOICES } from '../voice/geminiTts'
 import { GEMINI_MODELS, testGemini } from '../ai/gemini'
 import Mascot, { SKINS } from '../mascot/Mascot'
+import PhoneSettings from '../components/PhoneSettings'
 
 export default function Settings() {
   const prefs = usePrefs()
@@ -154,6 +155,8 @@ export default function Settings() {
           <button className="btn" onClick={stopSpeaking}>■</button>
         </div>
       </div>
+
+      <PhoneSettings />
 
       <div className="glass card stack">
         <h2>IA · Gemini</h2>

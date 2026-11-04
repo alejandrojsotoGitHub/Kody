@@ -2,11 +2,13 @@
 import { getPrefs, type Prefs } from '../db/settings'
 import { useKody } from '../mascot/store'
 import { geminiSpeak, stopGeminiAudio } from './geminiTts'
+import { device, isNative } from '../native/device'
 const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
 export const speechSupported = !!SR
 
 /** Motivo por el que la voz no puede funcionar aquí (o null si todo bien). */
 export function voiceProblem(): string | null {
+  if (isNative) return null // en la app Android se usa el reconocedor nativo
   if (!window.isSecureContext)
     return 'El micrófono solo funciona con HTTPS. Abre Kody desde su dirección https:// (no desde http://IP).'
   if (!SR) return 'Este navegador no soporta dictado por voz. Usa Chrome en Android.'
@@ -15,6 +17,7 @@ export function voiceProblem(): string | null {
 
 /** Pide permiso de micrófono de forma explícita. Devuelve un mensaje si falla. */
 export async function ensureMic(): Promise<string | null> {
+  if (isNative) return null // el plugin pide el permiso al empezar
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     stream.getTracks().forEach((t) => t.stop())
@@ -43,6 +46,7 @@ interface OnceHandlers {
 
 /** Dictado de una sola frase con texto parcial. Devuelve función para cancelar. */
 export function listenOnce(h: OnceHandlers): () => void {
+  if (isNative) return listenNative(h)
   const r = new SR()
   r.lang = 'es-MX'
   r.interimResults = true
@@ -65,6 +69,10 @@ export function listenOnce(h: OnceHandlers): () => void {
 
 /** Escucha continua: al oír "Kody" captura la orden (misma frase o la siguiente). */
 export function startWake(onCommand: (t: string) => void, onArmed: (armed: boolean) => void, onError?: (msg: string) => void): () => void {
+  if (isNative) {
+    onError?.('La escucha continua de "Kody" solo funciona en el navegador. En la app usa el botón del micrófono.')
+    return () => {}
+  }
   let active = true
   let armed = false
   let r: any
@@ -167,4 +175,38 @@ export async function previewVoice(prefs: Prefs): Promise<void> {
   stopSpeaking()
   if (prefs.voiceEngine === 'gemini') return geminiSpeak(t, prefs)
   await deviceSpeak(t, prefs)
+}
+
+/** Dictado con el reconocedor de voz de Android (el WebView no trae Web Speech API). */
+function listenNative(h: OnceHandlers): () => void {
+  let finalText = ''
+  let done = false
+  const handles: { remove: () => Promise<void> }[] = []
+  const finish = () => {
+    if (done) return
+    done = true
+    handles.forEach((x) => x.remove())
+    if (finalText.trim()) h.onFinal(finalText.trim())
+    h.onEnd?.()
+  }
+  const NATIVE_ERRORS: Record<string, string> = {
+    'no-speech': 'No te escuché. Intenta de nuevo.',
+    network: 'Sin conexión para reconocer la voz.',
+    'audio-capture': 'No encuentro un micrófono.',
+    'not-allowed': 'Permiso de micrófono denegado. Actívalo en los ajustes de Android.',
+    busy: 'El reconocedor de voz está ocupado. Intenta otra vez.',
+  }
+  ;(async () => {
+    handles.push((await device.on('speechPartial', (d) => d.text && h.onInterim?.(d.text)))!)
+    handles.push((await device.on('speechResult', (d) => { finalText = d.text ?? ''; finish() }))!)
+    handles.push((await device.on('speechError', (d) => { h.onError?.(NATIVE_ERRORS[d.error ?? ''] ?? `Error de voz (${d.error})`); finish() }))!)
+    try {
+      await device.startListening('es-MX')
+    } catch (e) {
+      const m = (e as Error).message
+      h.onError?.(m === 'NO_PERMISSION' ? NATIVE_ERRORS['not-allowed'] : m === 'NO_RECOGNIZER' ? 'Este teléfono no tiene un servicio de reconocimiento de voz (instala o activa "Google").' : m)
+      finish()
+    }
+  })()
+  return () => { void device.stopListening() }
 }
